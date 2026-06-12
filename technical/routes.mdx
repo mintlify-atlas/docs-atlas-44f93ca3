@@ -1,5 +1,5 @@
 ---
-title: "HTTP Routes and Page Map for EduPets"
+title: "EduPets HTTP Routes: Page Map and Template Reference"
 sidebarTitle: "Routes"
 description: "Complete reference for all EduPets HTTP GET routes, their Jinja2 template mapping, JavaScript dependencies, and the health check endpoint."
 ---
@@ -11,6 +11,7 @@ EduPets exposes only HTTP GET routes. Every route except `/health` returns a ful
 | Route | Template | JavaScript | Description |
 |---|---|---|---|
 | `/` | `index.html` | `Fondo.js` | Landing / home page with animated canvas background |
+| `/index` | `index.html` | `Fondo.js` | Alias for `/` — same landing page |
 | `/login` | `login.html` | `Login.js` | Login form (client-side only) |
 | `/registro` | `registro.html` | `registro.js` | Registration form (client-side only) |
 | `/mascota` | `mascota.html` | `mascota.js` | Virtual pet dashboard |

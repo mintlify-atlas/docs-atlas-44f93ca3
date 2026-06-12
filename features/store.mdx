@@ -1,5 +1,5 @@
 ---
-title: "In-Game Store: Cosmetic Items and Rewards"
+title: "EduPets Store: Cosmetic Items, Layout, and Navigation"
 sidebarTitle: "Store"
 description: "The EduPets store displays cosmetic items children can browse. The store is accessible from the pet dashboard and returns the player to /mascota."
 ---
@@ -21,12 +21,12 @@ The store is reachable via the **Tienda** button in the game menu panel on `/mas
 
 ## Current items
 
-The store currently displays two product cards:
+The store currently displays two product cards, each inside its own `<section class="cosmeticos">` block:
 
-| Item | Price | Image source |
+| Item (`<h2>`) | Price | Image source |
 |---|---|---|
 | Producto destacado | $9.99 | `cp.png` |
-| Chamber | $800.99 | `Chamber.jpeg` |
+| Producto destacado | $800.99 | `Chamber.jpeg` |
 
 Both listings are placeholder entries used to validate the store layout. Neither item can be purchased — there is no checkout flow, no in-game currency system, and no backend purchase endpoint at this time.
 
@@ -36,7 +36,7 @@ Both listings are placeholder entries used to validate the store layout. Neither
 
 ## Store structure
 
-The store page is built from standard semantic HTML inside `tienda.html`. Its top-level layout looks like this:
+The store page is built from standard semantic HTML inside `tienda.html`. Each product lives in its own `<section class="cosmeticos">` block. The full layout for both items looks like this:
 
 ```html
 <main class="store">
@@ -51,6 +51,16 @@ The store page is built from standard semantic HTML inside `tienda.html`. Its to
       <div class="product-info">
         <h2>Producto destacado</h2>
         <p class="product-price">$9.99</p>
+      </div>
+    </article>
+  </section>
+
+  <section class="cosmeticos" aria-label="Cosméticos">
+    <article class="product-card">
+      <img class="product-image" src="..." alt="Producto de la tienda">
+      <div class="product-info">
+        <h2>Producto destacado</h2>
+        <p class="product-price">$800.99</p>
       </div>
     </article>
   </section>

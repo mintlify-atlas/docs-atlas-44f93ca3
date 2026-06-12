@@ -1,5 +1,5 @@
 ---
-title: "Frontend Architecture: Vanilla JS, CSS, and Jinja2 Templates"
+title: "EduPets Frontend: Vanilla JS, CSS, and Jinja2 Templates"
 sidebarTitle: "Frontend"
 description: "EduPets uses no JavaScript framework. Each page loads its own vanilla JS file for game logic, and Jinja2 url_for() generates all static asset URLs."
 ---
@@ -40,7 +40,7 @@ At render time, `{{ url_for('static', path='Estilos/index.css') }}` becomes `/st
 
 ## JavaScript files
 
-Each page loads exactly one JS file responsible for all the interactivity on that page. Files are not shared between pages (except `script.js` on the info pages).
+Each page loads exactly one JS file responsible for all the interactivity on that page. Files are not shared between pages. The info pages (`/que-es`, `/por-que`, `/equipo`) load no JavaScript.
 
 | File | Used on | Purpose |
 |---|---|---|
@@ -53,7 +53,6 @@ Each page loads exactly one JS file responsible for all the interactivity on tha
 | `multiplicacion.js` | `/ejercicio3` | Multiplication exercise game logic |
 | `division.js` | `/ejercicio4` | Division exercise game logic |
 | `Examen.js` | `/examenes` | Mixed exam mode — randomly cycles through all four operation types, 5 questions, 2 lives |
-| `script.js` | Info pages | Shared canvas animation utility used on informational pages |
 
 ## CSS stylesheets
 
