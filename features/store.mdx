@@ -1,0 +1,69 @@
+---
+title: "In-Game Store: Cosmetic Items and Rewards"
+sidebarTitle: "Store"
+description: "The EduPets store displays cosmetic items children can browse. The store is accessible from the pet dashboard and returns the player to /mascota."
+---
+
+The EduPets store gives children a place to browse cosmetic rewards earned through play. Accessible directly from Pingüi's game menu, the store page is designed to grow alongside the platform — the layout and card components are fully in place, ready for items, pricing, and a purchase system to be wired up as the project matures.
+
+## Accessing the store
+
+The store is reachable via the **Tienda** button in the game menu panel on `/mascota`. That button navigates to the `/tienda` route, which renders `tienda.html`. No authentication or currency check is required to view the store.
+
+<CardGroup cols={2}>
+  <Card title="Virtual Pet" icon="paw" href="/features/virtual-pet">
+    Learn about Pingüi's stats, tasks, and the pet dashboard.
+  </Card>
+  <Card title="Math Exercises" icon="calculator" href="/features/math-exercises">
+    The four exercise modes that reward pet stats on completion.
+  </Card>
+</CardGroup>
+
+## Current items
+
+The store currently displays two product cards:
+
+| Item | Price | Image source |
+|---|---|---|
+| Producto destacado | $9.99 | `cp.png` |
+| Chamber | $800.99 | `Chamber.jpeg` |
+
+Both listings are placeholder entries used to validate the store layout. Neither item can be purchased — there is no checkout flow, no in-game currency system, and no backend purchase endpoint at this time.
+
+<Note>
+  The store currently has no backend purchase system or in-game currency. The two product cards are UI scaffolding intended for future expansion. Clicking a product card has no effect.
+</Note>
+
+## Store structure
+
+The store page is built from standard semantic HTML inside `tienda.html`. Its top-level layout looks like this:
+
+```html
+<main class="store">
+  <header class="store-header">
+    <h1>Tienda</h1>
+    <a href="/mascota">Volver</a>
+  </header>
+
+  <section class="cosmeticos" aria-label="Cosméticos">
+    <article class="product-card">
+      <img class="product-image" src="..." alt="Producto de la tienda">
+      <div class="product-info">
+        <h2>Producto destacado</h2>
+        <p class="product-price">$9.99</p>
+      </div>
+    </article>
+  </section>
+</main>
+```
+
+Each product is an `<article class="product-card">` inside a `<section class="cosmeticos">`. The card contains:
+
+- A `product-image` thumbnail
+- A `product-info` block with the item name (`<h2>`) and price (`<p class="product-price">`)
+
+New items can be added by appending additional `<article>` elements to an existing `<section class="cosmeticos">`, or by introducing new `<section>` blocks for different item categories.
+
+## Navigation
+
+The store header contains a **"Volver"** (`<a href="/mascota">`) link that returns the player to the pet dashboard. There is no JavaScript involved in store navigation — all routing is handled by plain anchor links.

@@ -1,0 +1,123 @@
+---
+title: "Deploy EduPets to Vercel in One Command"
+sidebarTitle: "Deployment"
+description: "Deploy EduPets to Vercel using the project's included vercel.json config. Covers CLI deployment, environment setup, and routing behavior."
+---
+
+EduPets ships with a `vercel.json` configuration file that tells Vercel exactly how to build and route the application. Because the app has no server-side database and no secret environment variables, a first deployment is literally a single command after you have the Vercel CLI installed. The sections below walk through every aspect of the deployment, from how the config works to ongoing GitHub-based continuous deployment.
+
+## How it works
+
+Vercel uses the `vercel.json` file at the project root to determine how to build each part of the application and how to route incoming requests. EduPets defines two builds and two routes:
+
+- **`@vercel/python` build for `main.py`** — Vercel's Python runtime wraps the FastAPI ASGI app in a serverless function. Every non-static request is handled by this function.
+- **`@vercel/static` build for `static/**`** — all files inside the `static/` directory are uploaded to Vercel's CDN and served directly without hitting the Python function.
+- **Static route `/static/(.*)`** — requests that match this pattern are forwarded straight to the CDN-hosted static asset.
+- **Catch-all route `/(.*)`** — every other request is forwarded to `main.py`, where FastAPI's `PAGES` and `LEGACY_PAGES` dictionaries map URL paths to the correct Jinja2 template.
+
+```json
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "main.py",
+      "use": "@vercel/python"
+    },
+    {
+      "src": "static/**",
+      "use": "@vercel/static"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/static/(.*)",
+      "dest": "/static/$1"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "main.py"
+    }
+  ]
+}
+```
+
+## Deploy with the Vercel CLI
+
+<Steps>
+  <Step title="Install the Vercel CLI">
+    Install the Vercel CLI globally via npm. You need Node.js 18 or later.
+
+    ```bash
+    npm install -g vercel
+    ```
+  </Step>
+
+  <Step title="Log in to Vercel">
+    Authenticate the CLI with your Vercel account. This opens a browser window for OAuth.
+
+    ```bash
+    vercel login
+    ```
+  </Step>
+
+  <Step title="Deploy to a preview URL">
+    Run `vercel` from the project root. The CLI will ask you to confirm the project name, the linked Vercel team (if any), and whether to override any settings. Accept the defaults to deploy immediately.
+
+    ```bash
+    vercel
+    ```
+
+    Once the build completes, the CLI prints a unique preview URL such as `https://edu-pets-abc123.vercel.app` where you can test the deployment before promoting it to production.
+  </Step>
+
+  <Step title="Promote to production">
+    When you are happy with the preview, deploy to your production domain with the `--prod` flag.
+
+    ```bash
+    vercel --prod
+    ```
+
+    This assigns the deployment to your project's production URL (e.g. `https://edu-pets.vercel.app` or any custom domain you have configured).
+  </Step>
+</Steps>
+
+## Deploy via GitHub
+
+For teams or ongoing projects, the easiest workflow is to connect the repository to Vercel through the dashboard:
+
+1. Go to [vercel.com/new](https://vercel.com/new) and click **Import Git Repository**.
+2. Select the **Edupets-Studio/Edu-pets** repository (grant Vercel access to it if prompted).
+3. Vercel detects `vercel.json` automatically — no framework preset needs to be selected.
+4. Click **Deploy**.
+
+From that point on, every push to the default branch triggers a new production deployment, and every pull request gets its own preview URL. No manual CLI commands are needed.
+
+## Static assets
+
+All files under the `static/` directory — stylesheets, JavaScript files, images, audio, and fonts — are handled by the `@vercel/static` builder and served from Vercel's global CDN edge network. Requests matching `/static/**` are routed directly to the CDN by the first route in `vercel.json` and never reach the Python serverless function, keeping response times fast and function invocation costs low.
+
+If you add new assets to the `static/` directory, they are picked up automatically on the next deployment — no configuration changes are required.
+
+## Health check
+
+EduPets exposes a lightweight health endpoint that returns a JSON response:
+
+```
+GET /health
+```
+
+```json
+{"status": "ok"}
+```
+
+This route is defined directly in `main.py` as a dedicated FastAPI endpoint (separate from the template-rendering routes) and is useful for uptime monitors, load-balancer health checks, or CI smoke tests after a deployment.
+
+```python
+@app.get("/health")
+async def health() -> dict[str, str]:
+    return {"status": "ok"}
+```
+
+<Note>
+  EduPets uses **no server-side database** — all game state is stored in each user's browser localStorage. This means no database credentials, no connection strings, and no secret environment variables are needed for a basic deployment. You can deploy the project to Vercel without setting a single environment variable and the app will work in full.
+</Note>

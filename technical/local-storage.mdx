@@ -1,0 +1,137 @@
+---
+title: "localStorage State Management in EduPets"
+sidebarTitle: "Local Storage"
+description: "EduPets stores all game state in the browser's localStorage. This reference covers every key, its data shape, where it is written, and where it is read."
+---
+
+EduPets has no backend database and no server-side sessions. Everything that needs to survive a page navigation — the pet's name, its current hunger/sleep/happiness levels, and the task the child has been assigned — is stored in the browser's `localStorage` API as serialised JSON strings. This keeps the architecture simple and means the game works entirely offline once the page has loaded, but it also means all progress is local to the device and browser the child is using.
+
+## Why localStorage?
+
+Since there is no backend database, `localStorage` is the only place game state can persist across page navigations without re-fetching from the server. JavaScript on any page can call `localStorage.getItem(key)` and immediately recover the pet's last known state. Writing is synchronous and instant, so stat values update in real time as the decay timer fires every 300 ms.
+
+The trade-off is that data is device-scoped. A child who logs in from a different browser or clears their browser storage starts fresh. There is no cross-device sync.
+
+## State reference
+
+| Key | Type | Default | Written by | Read by | Description |
+|---|---|---|---|---|---|
+| `nombreMascota` | `string` | `"Pingüi"` | `mascota.js` → `guardarNombre()` | `mascota.js` → `cargarNombre()` | The player-chosen name of the virtual pet |
+| `niveles` | JSON object | `{comida:100, sueno:100, felicidad:100}` | `mascota.js` → `degradarOrbes()`, `actualizarOrbes()`; `Suma.js` → `aumentarOrbeSiCoincide()` | `mascota.js` → `nivelesIniciales()` | Current pet stat values — each ranges from 0 to 100 |
+| `tareaActual` | JSON object | `null` (randomly generated on first load) | `mascota.js` → `generarTarea()` | `Suma.js` / `resta.js` / etc. → `aumentarOrbeSiCoincide()` | The currently assigned task; cleared when the matching exercise is completed |
+
+## niveles object shape
+
+```json
+{
+  "comida": 85.2,
+  "sueno": 72.0,
+  "felicidad": 91.5
+}
+```
+
+Each value is a floating-point number between `0` and `100` inclusive. The decimal precision accumulates because the decay step (`-0.03`) and boost step (`+20`) are applied in floating-point arithmetic. The UI rounds to the nearest integer for display (`Math.round(valor)`).
+
+## tareaActual object shape
+
+```json
+{
+  "tipo": "suma",
+  "texto": "Realiza una suma para aumentar la felicidad",
+  "orbe": "felicidad"
+}
+```
+
+| Field | Values | Meaning |
+|---|---|---|
+| `tipo` | `"suma"`, `"resta"`, `"multiplicacion"`, `"division"` | Which exercise type fulfils this task |
+| `texto` | Human-readable Spanish string | Displayed in the task box on the pet dashboard |
+| `orbe` | `"comida"`, `"sueno"`, `"felicidad"` | Which stat is boosted when the task is completed |
+
+The full set of possible tasks is defined in `mascota.js`:
+
+```javascript title="static/js/mascota.js (tareas array)"
+const tareas = [
+  { tipo: "suma",           texto: "Realiza una suma para aumentar la felicidad",      orbe: "felicidad" },
+  { tipo: "resta",          texto: "Haz una resta para mejorar el sueño",              orbe: "sueno"     },
+  { tipo: "multiplicacion", texto: "Completa una multiplicación para ganar comida",    orbe: "comida"    },
+  { tipo: "division",       texto: "Resuelve una división para subir la felicidad",    orbe: "felicidad" },
+];
+```
+
+## Stat decay calculation
+
+When the `/mascota` page loads, a repeating timer is started that slowly drains all three stats to simulate the pet getting hungry, tired, and less happy over time:
+
+```javascript title="static/js/mascota.js (degradarOrbes)"
+function degradarOrbes() {
+  const niveles = nivelesIniciales();
+  Object.keys(niveles).forEach((orbe) => {
+    niveles[orbe] = Math.max(0, niveles[orbe] - 0.03);
+  });
+  localStorage.setItem("niveles", JSON.stringify(niveles));
+  actualizarOrbes();
+}
+
+// Started on window load:
+setInterval(degradarOrbes, 300);
+```
+
+**Decay rate summary:**
+
+| Interval | Decrement | Per second | Per minute |
+|---|---|---|---|
+| Every 300 ms | −0.03 | −0.1 | ~−6 points |
+
+Each stat floors at `0` via `Math.max(0, ...)` and will never go negative. The timer only runs while the `/mascota` page is open — navigating away pauses decay because the `setInterval` is created in the mascota page's script context and is cleared when the page unloads.
+
+## Stat boost on task completion
+
+When a child finishes an exercise, the exercise JS checks whether the completed operation matches the current task. If it does, the linked stat is boosted and the task is cleared:
+
+```javascript title="static/js/Suma.js (aumentarOrbeSiCoincide)"
+function aumentarOrbeSiCoincide(tipoEjercicio) {
+  const tarea = JSON.parse(localStorage.getItem("tareaActual"));
+  if (!tarea || tarea.tipo !== tipoEjercicio) return;
+
+  const niveles = JSON.parse(localStorage.getItem("niveles")) || {
+    comida: 100,
+    sueno: 100,
+    felicidad: 100,
+  };
+  niveles[tarea.orbe] = Math.min(100, niveles[tarea.orbe] + 20);
+  localStorage.setItem("niveles", JSON.stringify(niveles));
+  localStorage.removeItem("tareaActual");
+}
+```
+
+This function is called at the end of a successfully completed exercise set (e.g., after all 10 addition questions in `Suma.js`). Key behaviours:
+
+- If `tareaActual` is `null` (no task assigned, or task already completed), the function returns immediately without modifying stats.
+- If the completed exercise type does **not** match `tarea.tipo`, nothing happens — completing the wrong exercise does not reward stats.
+- The boost is `+20` points, capped at `100` via `Math.min(100, ...)`.
+- `tareaActual` is removed from `localStorage` after the boost so a new task will be generated on the next visit to `/mascota`.
+
+## Resetting state
+
+<Warning>
+  Clearing `localStorage` (for example via browser DevTools → **Application** → **Storage** → **Clear site data**) immediately resets all game progress. The pet's name reverts to `"Pingüi"`, all three stats return to `100`, and any active task is discarded. This is intentional behaviour and can be useful during development and testing to verify the first-run experience, but instruct children and parents that clearing browser data will erase their pet's progress permanently.
+</Warning>
+
+To reset only EduPets state without clearing other site data, open the browser console on any EduPets page and run:
+
+```javascript
+localStorage.removeItem("nombreMascota");
+localStorage.removeItem("niveles");
+localStorage.removeItem("tareaActual");
+```
+
+To inspect the current raw values:
+
+```javascript
+console.log({
+  nombreMascota: localStorage.getItem("nombreMascota"),
+  niveles:       JSON.parse(localStorage.getItem("niveles")),
+  tareaActual:   JSON.parse(localStorage.getItem("tareaActual")),
+});
+```

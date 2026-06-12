@@ -1,0 +1,155 @@
+---
+title: "Mixed-Operation Exam Mode with Lives and Auto-Scoring"
+sidebarTitle: "Exams"
+description: "The EduPets exam presents 5 questions drawn randomly from all four math operations. Students have 2 lives; the session ends with success or failure after all questions."
+---
+
+The exam mode at `/examenes` challenges students with a mixed set of questions drawn from all four math operations in a single session. Unlike the standalone exercise modes, the exam does not focus on one operation — each question can be addition, subtraction, multiplication, or division, selected at random. Students have 2 lives and must work through 5 questions to reach the success screen, after which they are automatically returned to their pet.
+
+## Exam structure
+
+The exam session is governed by three top-level variables:
+
+```javascript
+let vidas = 2;
+let preguntas = 0;
+const totalPreguntas = 5;
+const tiposOperaciones = ["suma", "resta", "multiplicación", "división"];
+```
+
+At the start of each question `generarPregunta` checks whether all 5 questions have been answered. If they have, a success message is shown and the player is redirected to `/mascota` after **4 seconds**. Otherwise, a random operation is picked from `tiposOperaciones` and new numbers are generated:
+
+```javascript
+function generarPregunta() {
+  mensajeDiv.innerHTML = "";
+
+  if (preguntas >= totalPreguntas) {
+    mensajeDiv.innerHTML = '<div class="message success">¡Examen completado! ¡Excelente!</div>';
+    setTimeout(() => window.location.href = "/mascota", 4000);
+    return;
+  }
+
+  const tipo = tiposOperaciones[Math.floor(Math.random() * tiposOperaciones.length)];
+  let a = generarNumero(10);
+  let b = generarNumero(10);
+  let respuesta;
+  let preguntaTexto;
+
+  document.getElementById("titulo").textContent = `Exámenes: ejercicios de ${tipo}`;
+
+  switch (tipo) {
+    case "suma":
+      respuesta = a + b;
+      preguntaTexto = `¿Cuánto es ${a} + ${b}?`;
+      break;
+    case "resta":
+      if (b > a) [a, b] = [b, a];
+      respuesta = a - b;
+      preguntaTexto = `¿Cuánto es ${a} - ${b}?`;
+      break;
+    case "multiplicación":
+      respuesta = a * b;
+      preguntaTexto = `¿Cuánto es ${a} × ${b}?`;
+      break;
+    case "división":
+      respuesta = a;
+      preguntaTexto = `¿Cuánto es ${a * b} ÷ ${b}?`;
+      break;
+  }
+  // ... option generation follows
+}
+```
+
+## Question types
+
+The `switch` statement in `generarPregunta` handles each operation type as follows:
+
+| Operation | Key | How `a` and `b` are used | Answer |
+|---|---|---|---|
+| Addition | `"suma"` | Both drawn 1–10 | `a + b` |
+| Subtraction | `"resta"` | Swapped if `b > a` to prevent negatives | `a - b` |
+| Multiplication | `"multiplicación"` | Both drawn 1–10 | `a × b` |
+| Division | `"división"` | `a` is the quotient; dividend shown is `a × b` | `a` (whole number guaranteed) |
+
+The header updates dynamically with each question to tell the student which operation type is being tested: e.g. *"Exámenes: ejercicios de multiplicación"*.
+
+## Answer options
+
+The exam renders **4 option buttons** per question — 1 correct answer and 3 distractors. Options are built using a `Set` to guarantee uniqueness, then shuffled before display:
+
+```javascript
+const opciones = new Set([respuesta]);
+
+while (opciones.size < 4) {
+  const diferencia = Math.floor(Math.random() * 5) + 1;
+  const opcion = Math.random() < 0.5 ? respuesta + diferencia : respuesta - diferencia;
+  if (opcion >= 0) opciones.add(opcion);
+}
+
+Array.from(opciones).sort(() => Math.random() - 0.5).forEach((opcion) => {
+  const btn = document.createElement("button");
+  btn.textContent = opcion;
+  btn.onclick = () => verificarRespuesta(opcion, respuesta, btn);
+  opcionesDiv.appendChild(btn);
+});
+```
+
+The distractor offset is **1–5**, keeping wrong answers plausible but clearly distinct.
+
+## Correct and incorrect feedback
+
+Answer verification disables all buttons immediately to prevent multiple selections, then applies a colour highlight and a short delay before advancing:
+
+```javascript
+function verificarRespuesta(opcion, correcta, boton) {
+  document.querySelectorAll(".options button").forEach((btn) => btn.disabled = true);
+
+  if (opcion === correcta) {
+    boton.style.backgroundColor = "#a8f5a8";
+    mensajeDiv.innerHTML = '<div class="message success">¡Correcto!</div>';
+    setTimeout(() => {
+      preguntas++;
+      generarPregunta();
+    }, 1200);
+    return;
+  }
+
+  boton.style.backgroundColor = "#f8b0b0";
+  mensajeDiv.innerHTML = '<div class="message fail">Intenta otra vez.</div>';
+
+  if (vidas > 0) {
+    document.getElementById(`vida${vidas}`).src = vidaMenos;
+    vidas--;
+  }
+
+  setTimeout(() => {
+    if (vidas === 0) {
+      mensajeDiv.innerHTML = '<div class="message fail">Se acabaron las vidas. ¡Vuelve a intentarlo!</div>';
+      setTimeout(() => window.location.href = "/mascota", 3500);
+    } else {
+      preguntas++;
+      generarPregunta();
+    }
+  }, 1500);
+}
+```
+
+- **Correct** — button turns green; next question after **1.2 s**.
+- **Incorrect** — button turns red; a life heart is replaced with `VidaMenos.png`; next question (or failure screen) after **1.5 s**.
+
+## End conditions
+
+The exam session ends in one of two ways:
+
+<Steps>
+  <Step title="Success — all 5 questions answered">
+    When `preguntas >= totalPreguntas` at the top of `generarPregunta`, a success banner ("¡Examen completado! ¡Excelente!") is displayed. The player is automatically redirected to `/mascota` after **4 seconds**.
+  </Step>
+  <Step title="Failure — both lives lost">
+    When `vidas` reaches 0 after an incorrect answer, a failure banner ("Se acabaron las vidas. ¡Vuelve a intentarlo!") is shown. The player is redirected to `/mascota` after **3.5 seconds**.
+  </Step>
+</Steps>
+
+<Note>
+  The exam does **not** check or update `tareaActual`. Completing the exam — whether successfully or not — always redirects to `/mascota` without granting a stat boost. Pet stat rewards are only granted by the individual exercise modes (`/ejercicio1`–`/ejercicio4`) when the finished exercise type matches the active task.
+</Note>

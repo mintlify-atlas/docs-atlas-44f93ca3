@@ -1,0 +1,179 @@
+---
+title: "EduPets Architecture: FastAPI, Jinja2, and Client-Side State"
+sidebarTitle: "Architecture"
+description: "EduPets uses a thin FastAPI server to serve Jinja2 HTML templates and static assets. All game logic and state management run entirely in the browser."
+---
+
+EduPets is intentionally lean on the server side. The Python process does exactly one job — receive an HTTP request, pick the right HTML template, render it, and send it back. Everything that makes the platform feel like a game — pet stats, animated backgrounds, exercise scoring, task tracking — happens in vanilla JavaScript running in the child's browser. There is no database, no session middleware, and no server-side business logic.
+
+## Stack overview
+
+| Layer | Technology | Role |
+|---|---|---|
+| HTTP server | FastAPI (Python) | Routing and template rendering only |
+| Templates | Jinja2 | Produces the HTML sent to the browser |
+| Static assets | FastAPI `StaticFiles` at `/static/**` | CSS, JavaScript, and images |
+| Game state | Browser `localStorage` | All pet progress — no database |
+| Deployment | Vercel (Python runtime + static CDN) | Hosting and edge delivery |
+
+**FastAPI** handles routing and template rendering only. No business logic lives in Python. Every route handler is a one-liner that calls `templates.TemplateResponse(...)` and returns HTML.
+
+**Jinja2 templates** produce the HTML for each page. They are used almost exclusively to generate correct `{{ url_for('static', ...) }}` URLs for CSS, JS, and image assets — there is no dynamic data injected from Python.
+
+**StaticFiles** is mounted at `/static` and serves CSS, JavaScript, and image files directly from the `static/` directory. Vercel's static CDN layer handles these in production.
+
+**localStorage** is the only persistence layer. Pet names, stat levels, and the active task are all written and read by JavaScript running in the browser. Clearing browser storage resets all progress.
+
+**Vercel** hosts the application using the `@vercel/python` builder for `main.py` and `@vercel/static` for everything under `static/`. All requests not matching `/static/**` are forwarded to `main.py`.
+
+## Project structure
+
+```text
+Edu-pets/
+├── main.py              # FastAPI application entry point
+├── requirements.txt     # Python dependencies
+├── vercel.json          # Vercel deployment configuration
+├── templates/           # Jinja2 HTML templates (one per page)
+│   ├── index.html
+│   ├── mascota.html
+│   ├── ejercicio1.html  # ... through ejercicio4.html
+│   └── ...
+└── static/
+    ├── Estilos/         # CSS stylesheets
+    ├── js/              # Vanilla JavaScript game logic
+    └── assets/
+        └── images/      # Sprites, icons, and pet artwork
+```
+
+## Request flow
+
+<Steps>
+  <Step title="Browser sends GET request">
+    The child's browser navigates to a URL such as `/mascota` or `/ejercicio1`.
+  </Step>
+  <Step title="Vercel routes to main.py">
+    The `vercel.json` routing rules match all non-static paths to `main.py` via the `@vercel/python` builder.
+  </Step>
+  <Step title="FastAPI matches the route">
+    `app.add_api_route` has registered a handler for the path. The handler calls `render_page(request, template_name)`.
+  </Step>
+  <Step title="Jinja2 renders the HTML template">
+    `templates.TemplateResponse(...)` resolves `{{ url_for('static', ...) }}` expressions to absolute `/static/...` paths and returns the complete HTML string.
+  </Step>
+  <Step title="Browser executes JavaScript">
+    The page's `<script>` tag loads the page-specific JS file (e.g., `mascota.js`, `Suma.js`). All game logic runs from here — no further server communication is required.
+  </Step>
+  <Step title="Game logic runs client-side">
+    JavaScript reads and writes `localStorage`, manages the DOM, generates quiz questions, and tracks pet stats entirely within the browser.
+  </Step>
+</Steps>
+
+## main.py walkthrough
+
+The entire server is under 60 lines of Python.
+
+```python title="main.py"
+from pathlib import Path
+
+from fastapi import FastAPI, Request
+from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
+
+BASE_DIR = Path(__file__).resolve().parent
+
+app = FastAPI(title="EduPets")
+
+app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
+templates = Jinja2Templates(directory=BASE_DIR / "templates")
+
+
+PAGES = {
+    "/": "index.html",
+    "/index": "index.html",
+    "/login": "login.html",
+    "/registro": "registro.html",
+    "/mascota": "mascota.html",
+    "/tienda": "tienda.html",
+    "/examenes": "examenes.html",
+    "/ejercicio1": "ejercicio1.html",
+    "/ejercicio2": "ejercicio2.html",
+    "/ejercicio3": "ejercicio3.html",
+    "/ejercicio4": "ejercicio4.html",
+    "/player": "player.html",
+    "/que-es": "que es.html",
+    "/por-que": "por que.html",
+    "/equipo": "equipo.html",
+}
+
+LEGACY_PAGES = {
+    "/index.html": "index.html",
+    "/login.html": "login.html",
+    "/registro.html": "registro.html",
+    "/mascota.html": "mascota.html",
+    "/Mascota.html": "mascota.html",
+    "/tienda.html": "tienda.html",
+    "/Tienda.html": "tienda.html",
+    "/examenes.html": "examenes.html",
+    "/Examenes.html": "examenes.html",
+    "/ejercicio1.html": "ejercicio1.html",
+    "/ejercicio2.html": "ejercicio2.html",
+    "/ejercicio3.html": "ejercicio3.html",
+    "/ejercicio4.html": "ejercicio4.html",
+    "/player.html": "player.html",
+    "/que es.html": "que es.html",
+    "/por que.html": "por que.html",
+    "/equipo.html": "equipo.html",
+}
+
+
+def render_page(request: Request, template_name: str) -> HTMLResponse:
+    return templates.TemplateResponse(request=request, name=template_name)
+
+
+def page_handler(template_name: str):
+    async def handler(request: Request) -> HTMLResponse:
+        return render_page(request, template_name)
+
+    return handler
+
+
+for route_path, template_name in {**PAGES, **LEGACY_PAGES}.items():
+    app.add_api_route(
+        route_path,
+        page_handler(template_name),
+        response_class=HTMLResponse,
+        methods=["GET"],
+    )
+
+
+@app.get("/health")
+async def health() -> dict[str, str]:
+    return {"status": "ok"}
+```
+
+Key points in the code above:
+
+- **`BASE_DIR`** uses `Path(__file__).resolve().parent` so that file paths work correctly both locally and on Vercel, regardless of the working directory the process starts in.
+- **`app.mount("/static", ...)`** delegates all requests to `/static/**` directly to the filesystem — no Python code runs per static file request.
+- **`Jinja2Templates`** is configured with the `templates/` directory. Calling `TemplateResponse` without extra context means no dynamic data is injected; only `url_for` resolution happens.
+- **`PAGES` dict** maps clean URL paths (e.g., `/mascota`) to Jinja2 template filenames.
+- **`LEGACY_PAGES` dict** maps `.html`-suffixed and capitalized variants to the same templates for backwards compatibility with old bookmarks or links.
+- **Dynamic route registration** — the `for` loop calls `app.add_api_route` for every entry in the merged `PAGES + LEGACY_PAGES` dict. The `page_handler(template_name)` factory uses a closure to correctly capture `template_name` per iteration.
+- **`/health` endpoint** returns `{"status": "ok"}` and is used for uptime monitoring and load-balancer health checks.
+
+## Dependencies
+
+```text title="requirements.txt"
+fastapi[standard]==0.136.1
+jinja2==3.1.6
+```
+
+| Package | Purpose |
+|---|---|
+| `fastapi[standard]` | The web framework. The `[standard]` extra bundles `uvicorn` (ASGI server for local development), `pydantic` (request/response validation), `python-multipart`, and other commonly needed extras. |
+| `jinja2` | The HTML templating engine used to render `.html` templates from the `templates/` directory. |
+
+<Note>
+  The `/login` and `/registro` pages render client-side forms only — there is **no** backend user authentication in FastAPI. Form submissions are handled by `Login.js` and `registro.js` respectively, which call an external Google Apps Script endpoint directly from the browser. Python never sees the credentials.
+</Note>

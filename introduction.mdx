@@ -1,0 +1,63 @@
+---
+title: "EduPets: Educational Pet Game for Primary School Children"
+sidebarTitle: "Introduction"
+description: "Learn what EduPets is, who it's designed for, and how the gamified math learning loop motivates children to practice arithmetic daily."
+---
+
+EduPets is a browser-based educational game that blends virtual pet care with arithmetic practice, designed specifically for primary-school children. Students adopt a virtual penguin — named Pingüi by default — and keep it happy and healthy by completing math exercises. The more they practice, the better their pet does; neglect the exercises and the pet's stats will start to drop. The result is a self-reinforcing loop that makes daily arithmetic feel less like a chore and more like a responsibility children actually want to meet.
+
+## The learning loop
+
+The core mechanic is straightforward and deliberately simple so that young learners can understand it immediately. The pet has three needs — food, sleep, and happiness — each tracked as a percentage that decays over time. When a stat drops below a threshold the game assigns a task, which is a math exercise the student must complete. Finishing the exercise correctly restores the corresponding stat and rewards the student with in-game coins that can be spent in the store. The cycle then repeats, ensuring children return to the app regularly and accumulate practice across all four arithmetic operations.
+
+1. **Pet stats decay** — food, sleep, and happiness percentages fall while the app is idle.
+2. **Tasks are assigned** — when a stat is low the task panel shows a pending exercise.
+3. **Complete math exercises** — the student works through addition, subtraction, multiplication, or division problems.
+4. **Pet stats are restored** — correct answers refill the relevant stat and award coins.
+
+## Features
+
+<CardGroup cols={2}>
+  <Card title="Virtual Pet" icon="paw" href="/features/virtual-pet">
+    Adopt and name a virtual penguin. Monitor its food, sleep, and happiness stats and keep it thriving by staying on top of your exercises.
+  </Card>
+  <Card title="Math Exercises" icon="calculator" href="/features/math-exercises">
+    Practice addition, subtraction, multiplication, and division through dedicated exercise screens, each tailored to primary-school level.
+  </Card>
+  <Card title="Exams" icon="graduation-cap" href="/features/exams">
+    Test knowledge across all four operations at once with mixed exam mode — a great way to review before a school assessment.
+  </Card>
+  <Card title="Store" icon="store" href="/features/store">
+    Spend coins earned from completing exercises to buy accessories and items for your pet, adding an extra layer of motivation.
+  </Card>
+</CardGroup>
+
+## Tech stack
+
+- **Python + FastAPI** — lightweight ASGI backend that serves every page and handles routing
+- **Jinja2 HTML templates** — server-rendered HTML pages; no client-side framework required
+- **Vanilla JS + localStorage** — all game state (pet stats, coins, player name) lives in the browser; no database needed
+- **Vercel hosting** — deployed via `@vercel/python` with static assets served directly from Vercel's CDN
+
+## Who is it for?
+
+EduPets is built for **primary-school students** — typically ages 6 to 12 — who are learning the four basic arithmetic operations. The game layer lowers the psychological barrier to repetitive practice: children are motivated by the pet's wellbeing rather than abstract grades or point totals.
+
+It is also designed with **teachers and parents** in mind. Because EduPets runs entirely in the browser with no accounts, no server-side database, and no third-party integrations, there is nothing to configure and no sensitive data to manage. A teacher can share the URL with a class, or a parent can bookmark it on a tablet, and it works immediately.
+
+## Key features
+
+<CardGroup cols={2}>
+  <Card title="Virtual penguin pet" icon="paw">
+    A customisable penguin companion whose food, sleep, and happiness stats respond directly to the student's exercise activity.
+  </Card>
+  <Card title="Four math operations" icon="calculator">
+    Dedicated exercise screens for addition, subtraction, multiplication, and division, covering the full primary-school arithmetic curriculum.
+  </Card>
+  <Card title="Mixed exam mode" icon="graduation-cap">
+    A timed exam that draws questions from all four operations, helping students consolidate their skills and prepare for assessments.
+  </Card>
+  <Card title="Task & reward system" icon="star">
+    Completing exercises earns coins that unlock store items, creating a clear and motivating feedback loop between effort and reward.
+  </Card>
+</CardGroup>

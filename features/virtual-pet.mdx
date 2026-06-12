@@ -1,0 +1,95 @@
+---
+title: "Virtual Pet: Stats, Tasks, and Caring for Pingüi"
+sidebarTitle: "Virtual Pet"
+description: "EduPets' virtual penguin has three stats — food, sleep, and happiness — that drain in real time and are restored by completing assigned math exercises."
+---
+
+EduPets places a virtual penguin named **Pingüi** at the centre of the learning loop. Three stat orbs — food, sleep, and happiness — decay passively over time, nudging children to return to the game and complete math exercises to keep their pet healthy. Every exercise session is tied to a randomly assigned task that, once completed, restores the corresponding stat by 20 points, giving children a clear goal with an immediately visible reward.
+
+## Pet stats
+
+Pingüi has three stats, each represented as a percentage from 0 to 100:
+
+| Stat | Spanish key | Starting value | Visual element |
+|---|---|---|---|
+| Food | `comida` | 100% | `comida.png` orb |
+| Sleep | `sueno` | 100% | `sueno.png` orb |
+| Happiness | `felicidad` | 100% | `felicidad.png` orb |
+
+All three stats begin at 100% when the player first visits `/mascota`. They are read from `localStorage` on every page load, so values persist across browser sessions.
+
+Stat decay is handled by `degradarOrbes`, which runs on a `setInterval` every **300 ms**. Each tick subtracts **0.03** from every stat (floored at 0), which works out to roughly **6 points per minute**.
+
+```javascript
+function degradarOrbes() {
+  const niveles = nivelesIniciales();
+  Object.keys(niveles).forEach((orbe) => {
+    niveles[orbe] = Math.max(0, niveles[orbe] - 0.03);
+  });
+  localStorage.setItem("niveles", JSON.stringify(niveles));
+  actualizarOrbes();
+}
+```
+
+`actualizarOrbes` then reads the stored values and updates both the percentage text and the brightness filter on each orb image so that the visual dims as the stat drops.
+
+## Task system
+
+On each visit to `/mascota`, the game checks `localStorage` for a saved `tareaActual`. If none exists, it picks a random entry from the `tareas` array and stores it. Each task links one math operation type (`tipo`) to the stat it will restore (`orbe`) and a human-readable prompt (`texto`) shown in the task panel.
+
+```javascript
+const tareas = [
+  { tipo: "suma",           texto: "Realiza una suma para aumentar la felicidad",         orbe: "felicidad" },
+  { tipo: "resta",          texto: "Haz una resta para mejorar el sueño",                 orbe: "sueno"     },
+  { tipo: "multiplicacion", texto: "Completa una multiplicación para ganar comida",       orbe: "comida"    },
+  { tipo: "division",       texto: "Resuelve una división para subir la felicidad",       orbe: "felicidad" },
+];
+```
+
+When the player finishes an exercise whose `tipo` matches the active task, the linked stat is increased by **+20** (capped at 100) and `tareaActual` is cleared from `localStorage`, prompting a new task on the next visit.
+
+## Name customization
+
+Pingüi's display name defaults to **"Pingüi"** but can be changed at any time from the pet dashboard. Clicking the ✎ edit button reveals an inline text bar; entering a new name and pressing **Aceptar** calls `guardarNombre`, which writes the value to `localStorage` under the key `nombreMascota` and updates the on-screen label immediately. Pressing **Cancelar** closes the bar without making changes.
+
+```javascript
+function guardarNombre() {
+  const nuevo = document.getElementById("nuevo-nombre").value.trim();
+  if (nuevo) {
+    nombreMascota.textContent = nuevo;
+    localStorage.setItem("nombreMascota", nuevo);
+  }
+  barraEdicion.classList.remove("activa");
+}
+```
+
+The saved name is loaded by `cargarNombre` on every page load, so the custom name persists across sessions.
+
+## Game menu
+
+The right-hand slide-out panel (toggled by the ▦ button) contains six navigation buttons that route the player to different activities:
+
+| Button label | Route |
+|---|---|
+| + Suma | `/ejercicio1` |
+| - Resta | `/ejercicio2` |
+| × Multiplicación | `/ejercicio3` |
+| ÷ División | `/ejercicio4` |
+| Exámenes | `/examenes` |
+| Tienda | `/tienda` |
+
+The task panel (toggled by the ☑ button) displays the current task text. Only one side panel can be open at a time; opening one automatically closes the other.
+
+## localStorage keys
+
+All game state is stored client-side in the browser's `localStorage`. No server-side session is required.
+
+| Key | Type | Description |
+|---|---|---|
+| `nombreMascota` | `string` | The pet's display name. Defaults to `"Pingüi"` if absent. |
+| `niveles` | JSON object `{ comida, sueno, felicidad }` | Current percentage values (0–100) for each of the three stats. |
+| `tareaActual` | JSON object `{ tipo, texto, orbe }` | The active task. Cleared when the matching exercise is completed. |
+
+<Tip>
+  Because all game state lives in `localStorage`, clearing browser data (via DevTools → Application → Storage → Clear site data, or an equivalent browser setting) resets Pingüi's name, all stat levels, and the active task back to their defaults.
+</Tip>

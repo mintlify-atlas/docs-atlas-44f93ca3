@@ -1,0 +1,98 @@
+---
+title: "HTTP Routes and Page Map for EduPets"
+sidebarTitle: "Routes"
+description: "Complete reference for all EduPets HTTP GET routes, their Jinja2 template mapping, JavaScript dependencies, and the health check endpoint."
+---
+
+EduPets exposes only HTTP GET routes. Every route except `/health` returns a full HTML page rendered by Jinja2. There are no REST API endpoints, no POST/PUT/DELETE handlers, and no JSON responses from page routes — the server's only job is to hand the browser an HTML file with correctly resolved static asset URLs.
+
+## Page routes
+
+| Route | Template | JavaScript | Description |
+|---|---|---|---|
+| `/` | `index.html` | `Fondo.js` | Landing / home page with animated canvas background |
+| `/login` | `login.html` | `Login.js` | Login form (client-side only) |
+| `/registro` | `registro.html` | `registro.js` | Registration form (client-side only) |
+| `/mascota` | `mascota.html` | `mascota.js` | Virtual pet dashboard |
+| `/tienda` | `tienda.html` | _(none)_ | In-game cosmetics store |
+| `/examenes` | `examenes.html` | `Examen.js` | Mixed-operation exam mode |
+| `/ejercicio1` | `ejercicio1.html` | `Suma.js` | Addition exercises |
+| `/ejercicio2` | `ejercicio2.html` | `resta.js` | Subtraction exercises |
+| `/ejercicio3` | `ejercicio3.html` | `multiplicacion.js` | Multiplication exercises |
+| `/ejercicio4` | `ejercicio4.html` | `division.js` | Division exercises |
+| `/player` | `player.html` | _(none)_ | Background music player (loaded via `<iframe>`) |
+| `/que-es` | `que es.html` | _(none)_ | What is EduPets? info page |
+| `/por-que` | `por que.html` | _(none)_ | Why we built it info page |
+| `/equipo` | `equipo.html` | _(none)_ | Team info page |
+
+## Health check
+
+The `/health` endpoint is the only route that returns JSON instead of HTML. It is intended for uptime monitors and Vercel's infrastructure probes.
+
+| Property | Value |
+|---|---|
+| Method | `GET` |
+| Path | `/health` |
+| Auth | None |
+| Response content-type | `application/json` |
+| Success status | `200 OK` |
+
+**Example request and response:**
+
+```bash
+curl https://your-edupets-domain.vercel.app/health
+```
+
+```json
+{"status": "ok"}
+```
+
+## Legacy routes
+
+The `LEGACY_PAGES` dict in `main.py` registers a second set of routes that map `.html`-suffixed paths and capitalised URL variants to the same templates. These exist so that old bookmarks and hardcoded links from earlier versions of the project continue to work without returning 404s.
+
+| Legacy path | Resolves to template |
+|---|---|
+| `/index.html` | `index.html` |
+| `/login.html` | `login.html` |
+| `/registro.html` | `registro.html` |
+| `/mascota.html` | `mascota.html` |
+| `/Mascota.html` | `mascota.html` |
+| `/tienda.html` | `tienda.html` |
+| `/Tienda.html` | `tienda.html` |
+| `/examenes.html` | `examenes.html` |
+| `/Examenes.html` | `examenes.html` |
+| `/ejercicio1.html` – `/ejercicio4.html` | respective exercise templates |
+| `/player.html` | `player.html` |
+| `/que es.html` | `que es.html` |
+| `/por que.html` | `por que.html` |
+| `/equipo.html` | `equipo.html` |
+
+New internal links should always use the clean paths from the `PAGES` dict (e.g., `/mascota`, not `/Mascota.html`).
+
+## Route registration pattern
+
+Rather than writing a separate handler function for each page, `main.py` generates all handlers dynamically from the `PAGES` and `LEGACY_PAGES` dicts using `app.add_api_route` and a closure factory:
+
+```python
+def page_handler(template_name: str):
+    async def handler(request: Request) -> HTMLResponse:
+        return render_page(request, template_name)
+
+    return handler
+
+
+for route_path, template_name in {**PAGES, **LEGACY_PAGES}.items():
+    app.add_api_route(
+        route_path,
+        page_handler(template_name),
+        response_class=HTMLResponse,
+        methods=["GET"],
+    )
+```
+
+The `page_handler` factory function is necessary because Python loop variables are captured by reference. Wrapping the inner `handler` in a factory ensures each registered handler closes over its own copy of `template_name` rather than the last value the loop variable held.
+
+<Note>
+  All routes accept only `GET` requests. There are no `POST`, `PUT`, or `DELETE` endpoints in EduPets. Form submissions on the login and registration pages are handled entirely in the browser by JavaScript calling an external Google Apps Script URL — no form data reaches the FastAPI server.
+</Note>

@@ -1,0 +1,80 @@
+{
+  "projectType": "saas",
+  "projectName": "EduPets",
+  "projectDescription": "EduPets is a browser-based educational platform for primary-school children that combines a virtual pet care game with math exercises (addition, subtraction, multiplication, and division) to motivate learning through play.",
+  "theme": "almond",
+  "primaryColor": "#06b906",
+  "lightColor": "#f0c948",
+  "darkColor": "#6eab83",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "quickstart",
+              "deployment"
+            ]
+          },
+          {
+            "group": "Platform Features",
+            "pages": [
+              "features/virtual-pet",
+              "features/math-exercises",
+              "features/exams",
+              "features/store"
+            ]
+          },
+          {
+            "group": "Technical Guide",
+            "pages": [
+              "technical/architecture",
+              "technical/routes",
+              "technical/frontend",
+              "technical/local-storage"
+            ]
+          },
+          {
+            "group": "About",
+            "pages": [
+              "about/overview",
+              "about/team"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Virtual penguin pet with food, sleep, and happiness stats that decay over time",
+    "Four math exercise modes: addition, subtraction, multiplication, and division",
+    "Mixed-operation exam mode with 5 questions and a lives system",
+    "Task system linking pet stat boosts to completing specific exercise types",
+    "In-game store for cosmetic items",
+    "Persistent state via localStorage (pet name, levels, active task)",
+    "Background music player embedded via iframe",
+    "Animated canvas background on the home screen",
+    "FastAPI backend serving Jinja2 HTML templates",
+    "One-click Vercel deployment"
+  ],
+  "publicApiSurface": [
+    "GET / — Home / landing page",
+    "GET /login — Login page",
+    "GET /registro — Registration page",
+    "GET /mascota — Virtual pet dashboard",
+    "GET /tienda — In-game store",
+    "GET /examenes — Mixed-operation exam",
+    "GET /ejercicio1 — Addition exercise",
+    "GET /ejercicio2 — Subtraction exercise",
+    "GET /ejercicio3 — Multiplication exercise",
+    "GET /ejercicio4 — Division exercise",
+    "GET /player — Background music player",
+    "GET /que-es — What is EduPets? info page",
+    "GET /por-que — Why we built it info page",
+    "GET /equipo — Team page",
+    "GET /health — Health check endpoint (returns {status: ok})"
+  ]
+}

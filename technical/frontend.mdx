@@ -1,0 +1,139 @@
+---
+title: "Frontend Architecture: Vanilla JS, CSS, and Jinja2 Templates"
+sidebarTitle: "Frontend"
+description: "EduPets uses no JavaScript framework. Each page loads its own vanilla JS file for game logic, and Jinja2 url_for() generates all static asset URLs."
+---
+
+EduPets has no frontend build step, no bundler, and no JavaScript framework. Each HTML page is a standalone Jinja2 template that includes one or two `<script>` tags pointing at plain vanilla JS files in `static/js/`. The only reason Jinja2 is involved at all is to resolve `{{ url_for('static', ...) }}` expressions into correct absolute paths at render time — everything else the browser handles on its own.
+
+## Template system
+
+Jinja2 templates in EduPets are used exclusively for one purpose: generating correct URLs for static assets via `url_for('static', path='...')`. There is no template inheritance (`{% extends %}`), no `{% block %}` system, and no dynamic data passed from Python into the template context. Every page is essentially a static HTML file where the asset paths are filled in at request time.
+
+Here is how the home page (`index.html`) uses `url_for`:
+
+```html title="templates/index.html"
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>EduPets - Inicio</title>
+  <link rel="icon" type="image/png" href="{{ url_for('static', path='assets/images/Logo.png') }}">
+  <link rel="stylesheet" href="{{ url_for('static', path='Estilos/index.css') }}">
+</head>
+<body>
+  <iframe src="/player" class="audio-frame" allow="autoplay"></iframe>
+  <canvas id="symbols" aria-hidden="true"></canvas>
+  <main class="container">
+    <section class="main-content" aria-label="Inicio de EduPets">
+      <a href="/login" class="start-button">Comenzar</a>
+      <a href="/que-es" class="help-button" aria-label="Ayuda">?</a>
+    </section>
+  </main>
+  <script src="{{ url_for('static', path='js/Fondo.js') }}"></script>
+</body>
+</html>
+```
+
+At render time, `{{ url_for('static', path='Estilos/index.css') }}` becomes `/static/Estilos/index.css`. This keeps asset references working correctly in both local development and on Vercel without hardcoding paths.
+
+## JavaScript files
+
+Each page loads exactly one JS file responsible for all the interactivity on that page. Files are not shared between pages (except `script.js` on the info pages).
+
+| File | Used on | Purpose |
+|---|---|---|
+| `Fondo.js` | `/` (index) | Animated canvas particle background — draws floating mathematical symbols |
+| `Login.js` | `/login` | Client-side login form handling; calls Google Apps Script via `fetch` |
+| `registro.js` | `/registro` | Client-side registration form handling; also draws animated canvas background |
+| `mascota.js` | `/mascota` | Pet stats display, passive stat decay timer, task generation, and pet name editing |
+| `Suma.js` | `/ejercicio1` | Addition exercise game logic — 10 questions, 3 lives, stat boost on completion |
+| `resta.js` | `/ejercicio2` | Subtraction exercise game logic |
+| `multiplicacion.js` | `/ejercicio3` | Multiplication exercise game logic |
+| `division.js` | `/ejercicio4` | Division exercise game logic |
+| `Examen.js` | `/examenes` | Mixed exam mode — randomly cycles through all four operation types, 5 questions, 2 lives |
+| `script.js` | Info pages | Shared canvas animation utility used on informational pages |
+
+## CSS stylesheets
+
+Each page links its own stylesheet from `static/Estilos/`. There is no global stylesheet or CSS reset shared across all pages.
+
+| File | Used on |
+|---|---|
+| `index.css` | Home page (`/`) |
+| `Mascota.css` | Pet dashboard (`/mascota`) |
+| `Ejercicios.css` | All exercise pages (`/ejercicio1`–`/ejercicio4`) and exam mode (`/examenes`) |
+| `Tienda.css` | Store (`/tienda`) |
+| `login.css` | Login page (`/login`) |
+| `registro.css` | Registration page (`/registro`) |
+| `informacion.css` | Info pages (`/que-es`, `/por-que`, `/equipo`) |
+
+## Background music player
+
+The `/player` route renders a minimal HTML page containing an audio element with autoplay. Most pages embed it as a hidden `<iframe>`:
+
+```html
+<iframe src="/player" class="audio-frame" allow="autoplay"></iframe>
+```
+
+Because the iframe is a separate browsing context, the audio keeps playing continuously as the child navigates between pages — the music is not interrupted by full page navigations. The `allow="autoplay"` attribute grants the iframe permission to start audio without a direct user interaction on the parent frame.
+
+## Canvas animation
+
+`Fondo.js` draws an animated floating-symbol background on a full-screen `<canvas id="symbols">` element. It spawns 30 particles, each carrying a random mathematical or special symbol, and moves them across the canvas at a slow drift speed, bouncing off the edges.
+
+```javascript title="static/js/Fondo.js"
+const canvas = document.getElementById("symbols");
+const ctx = canvas.getContext("2d");
+const symbols = ["π", "√", "∞", "∑", "∆", "≠", "≈", "∫", "∂", "🇨🇴"];
+const particles = [];
+
+function resizeCanvas() {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+}
+
+function createParticles() {
+  particles.length = 0;
+  for (let i = 0; i < 30; i++) {
+    particles.push({
+      x: Math.random() * canvas.width,
+      y: Math.random() * canvas.height,
+      dx: (Math.random() - 0.5) * 0.6,
+      dy: (Math.random() - 0.5) * 0.6,
+      size: Math.random() * 30 + 18,
+      symbol: symbols[Math.floor(Math.random() * symbols.length)],
+      opacity: Math.random() * 0.3 + 0.1,
+    });
+  }
+}
+
+function animate() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  particles.forEach((particle) => {
+    ctx.font = `${particle.size}px Segoe UI`;
+    ctx.fillStyle = `rgba(0,0,0,${particle.opacity})`;
+    ctx.fillText(particle.symbol, particle.x, particle.y);
+    particle.x += particle.dx;
+    particle.y += particle.dy;
+    if (particle.x < 0 || particle.x > canvas.width) particle.dx *= -1;
+    if (particle.y < 0 || particle.y > canvas.height) particle.dy *= -1;
+  });
+  requestAnimationFrame(animate);
+}
+
+resizeCanvas();
+createParticles();
+window.addEventListener("resize", () => {
+  resizeCanvas();
+  createParticles();
+});
+animate();
+```
+
+The canvas is resized to fill the full viewport on load and on every `resize` event so it always covers the entire background. The `aria-hidden="true"` attribute on the `<canvas>` element keeps the decorative animation invisible to screen readers.
+
+<Tip>
+  You may notice duplicate JS files in `static/js/` with accented filenames — for example `multiplicación.js` alongside `multiplicacion.js`, and `división.js` alongside `division.js`. The accented versions exist for legacy compatibility with earlier template versions that referenced them by their original filenames. Active page templates reference the non-accented filenames (`multiplicacion.js`, `division.js`). If you add a new exercise page, always use the non-accented filename convention.
+</Tip>

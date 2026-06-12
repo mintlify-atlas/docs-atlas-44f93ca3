@@ -1,47 +1,102 @@
 ---
-title: "Quickstart"
-description: "Begin with a guide on the fastest path to a successful outcome"
+title: "Run EduPets Locally with FastAPI"
+sidebarTitle: "Quickstart"
+description: "Set up and run EduPets on your local machine in under five minutes using Python 3.10+, pip, and the FastAPI development server."
 ---
 
-Describe how someone begins using your product. What is the first thing they need to do? Are there any prerequisites?
-
-A quickstart should take someone from zero to using your product. They'll get a quick win and a sense of what they can accomplish.
-
-## Prerequisites
-
-Before you begin, you must have:
-
-- Requirement one (for example, Node.js 18+, a free account, an API key)
-- Requirement two (for example, a compatible device, a compatible browser, a compatible operating system)
-
-## Get started
+EduPets is a standard FastAPI application, so getting it running locally requires nothing more than Python 3.10 or later, a virtual environment, and two dependencies. The steps below take you from a fresh clone to a working game in your browser in under five minutes.
 
 <Steps>
-  <Step title="Install">
-    Describe how to install your product or sign up.
+  <Step title="Clone the repository">
+    Clone the EduPets repository from GitHub and move into the project directory.
 
     ```bash
-    npm install your-package
+    git clone https://github.com/Edupets-Studio/Edu-pets.git && cd Edu-pets
     ```
   </Step>
-  <Step title="Configure">
-    Describe any setup or configuration needed before first use.
+
+  <Step title="Create a virtual environment">
+    Create an isolated Python environment so the project's dependencies don't conflict with anything else on your machine.
 
     ```bash
-    your-cli init
+    python -m venv .venv
     ```
+
+    Then activate it:
+
+    <CodeGroup>
+      ```bash macOS / Linux
+      source .venv/bin/activate
+      ```
+
+      ```powershell Windows
+      .venv\Scripts\Activate.ps1
+      ```
+    </CodeGroup>
+
+    Your terminal prompt should now show `(.venv)` to confirm the environment is active.
   </Step>
-  <Step title="Run it">
-    Show the first thing a user does to see it working.
+
+  <Step title="Install dependencies">
+    Install the project's two runtime dependencies from `requirements.txt`.
 
     ```bash
-    your-cli start
+    pip install -r requirements.txt
     ```
+
+    This installs:
+    - `fastapi[standard]==0.136.1` — the web framework, bundled with Uvicorn and its standard extras
+    - `jinja2==3.1.6` — the HTML templating engine used to render every page
+  </Step>
+
+  <Step title="Start the development server">
+    Use the `fastapi dev` command to launch Uvicorn with hot reload enabled.
+
+    ```bash
+    fastapi dev main.py
+    ```
+
+    FastAPI will start the Uvicorn development server and begin watching for file changes. You should see output similar to:
+
+    ```
+    INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+    INFO:     Started reloader process using WatchFiles
+    ```
+
+    Any change you make to a Python file or template will automatically reload the server.
+  </Step>
+
+  <Step title="Open the app in your browser">
+    Navigate to [http://127.0.0.1:8000](http://127.0.0.1:8000) in any modern browser. You will be greeted by the EduPets landing screen with a **Comenzar** (Start) button that leads to the login page and from there into the game.
   </Step>
 </Steps>
 
-<Tip>
-  Give people a way to get help. This could be a link to a support page, a chat with a customer support agent, or a forum for your product.
+<Note>
+  All game state — pet stats, player name, coins, and task history — is stored in your browser's **localStorage**. There is no database, no backend session, and no environment variables required. You can start playing immediately after the server is running, and your progress persists across page refreshes automatically.
+</Note>
 
-  Example: Need help? Reach out to us at [support@yourcompany.com](mailto:support@yourcompany.com).
+## App bootstrap
+
+The following excerpt from `main.py` shows how the FastAPI application is initialised, how static files are mounted, and how the Jinja2 template engine is configured:
+
+```python
+from pathlib import Path
+
+from fastapi import FastAPI, Request
+from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
+
+BASE_DIR = Path(__file__).resolve().parent
+
+app = FastAPI(title="EduPets")
+
+app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
+templates = Jinja2Templates(directory=BASE_DIR / "templates")
+```
+
+`BASE_DIR` is resolved at import time so the paths to the `static/` and `templates/` directories work correctly regardless of where the process is started from — which is important for Vercel's serverless runtime.
+
+<Tip>
+  **`fastapi dev` vs `fastapi run`** — use `fastapi dev main.py` during development. It enables hot reload via WatchFiles, so the server restarts automatically whenever you edit a source file. Use `fastapi run main.py` (or your process manager of choice) for a production-like local test — it starts Uvicorn without the reloader, mirroring how the app behaves on Vercel.
 </Tip>
